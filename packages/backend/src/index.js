@@ -10,14 +10,17 @@ import { encrypt, decrypt, validateCookie, createUniverse, uploadPlace, logger, 
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
+import axios from 'axios';
 import r2Routes from './routes/r2.js';
 
 dotenv.config();
 
 const app = express();
 const httpServer = createServer(app);
+const CORS_ORIGIN = process.env.CORS_ORIGIN || '*';
+
 const io = new Server(httpServer, {
-  cors: { origin: '*' }
+  cors: { origin: CORS_ORIGIN }
 });
 
 const prisma = new PrismaClient();
@@ -27,8 +30,12 @@ const JWT_SECRET = process.env.JWT_SECRET;
 const puppeteerService = new PuppeteerService(io, prisma, ENCRYPTION_KEY);
 const batchService = new BatchService(prisma, ENCRYPTION_KEY);
 
-app.use(cors());
+app.use(cors({ origin: CORS_ORIGIN }));
 app.use(express.json());
+
+// Health check endpoint
+app.get('/health', (req, res) => res.status(200).send('OK'));
+
 app.use('/api/r2', r2Routes);
 
 

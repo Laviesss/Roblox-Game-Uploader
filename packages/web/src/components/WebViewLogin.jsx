@@ -38,6 +38,14 @@ export default function WebViewLogin({ userId }) {
     handleInteraction('mouse-click', { x, y });
   };
 
+  const onKeyDown = (e) => {
+    // Prevent default for some keys to avoid page scrolling while typing in webview
+    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
+      e.preventDefault();
+    }
+    handleInteraction('key-down', { key: e.key });
+  };
+
   return (
     <div className="flex flex-col items-center">
       <button
@@ -46,7 +54,11 @@ export default function WebViewLogin({ userId }) {
       >
         Start WebView Login
       </button>
-      <div className="relative border-2 border-gray-300">
+      <div
+        className="relative border-2 border-gray-300 focus:border-blue-500 focus:outline-none"
+        tabIndex="0"
+        onKeyDown={onKeyDown}
+      >
         {frame ? (
           <img
             src={frame}
@@ -61,6 +73,7 @@ export default function WebViewLogin({ userId }) {
           </div>
         )}
       </div>
+      <p className="text-sm text-gray-500 mt-2">Click the image to focus, then use your keyboard to type.</p>
     </div>
   );
 }

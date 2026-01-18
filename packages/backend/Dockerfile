@@ -18,15 +18,17 @@ COPY package*.json ./
 COPY packages/shared/package*.json ./packages/shared/
 COPY packages/backend/package*.json ./packages/backend/
 
-RUN npm install
+ENV NODE_ENV=production
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+
+RUN npm install --omit=dev
 
 COPY packages/shared ./packages/shared
 COPY packages/backend ./packages/backend
 
 WORKDIR /app/packages/backend
 RUN npx prisma generate
-
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 EXPOSE 3001
 CMD ["npm", "start"]

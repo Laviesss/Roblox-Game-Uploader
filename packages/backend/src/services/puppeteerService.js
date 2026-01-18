@@ -1,7 +1,5 @@
 import puppeteer from 'puppeteer';
-import { logger } from '@rgu/shared';
-
-import { encrypt } from '@rgu/shared';
+import { logger, encrypt } from '@rgu/shared';
 
 export class PuppeteerService {
   constructor(io, prisma, encryptionKey) {
@@ -14,7 +12,15 @@ export class PuppeteerService {
   async startLogin(userId, socketId) {
     const browser = await puppeteer.launch({
       headless: "new",
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--no-first-run',
+        '--no-zygote',
+        '--disable-gpu'
+      ]
     });
 
     const page = await browser.newPage();
