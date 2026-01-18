@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roblox Uploader Dashboard</title>
+    <style>
+        body { font-family: sans-serif; max-width: 900px; margin: 20px auto; padding: 20px; line-height: 1.6; background: #f4f4f9; }
+        .section { background: white; border: 1px solid #ddd; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        h2 { margin-top: 0; color: #333; }
+        input[type="text"], input[type="password"], input[type="file"], select { display: block; width: 100%; margin: 10px 0; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+        button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 16px; }
+        button:hover { background: #0056b3; }
+        #status { font-weight: bold; margin: 10px 0; padding: 10px; border-radius: 4px; display: none; }
+        .success { background: #d4edda; color: #155724; display: block !important; }
+        .error { background: #f8d7da; color: #721c24; display: block !important; }
+        #log-container { max-height: 300px; overflow-y: auto; background: #eee; padding: 10px; font-family: monospace; font-size: 12px; border-radius: 4px; }
+        .log-entry { margin-bottom: 5px; border-bottom: 1px solid #ddd; padding-bottom: 2px; }
+    </style>
+</head>
+<body>
+    <h1>Roblox Game Uploader</h1>
+
+    <div id="status"></div>
+
+    <div class="section" id="auth-section">
+        <h2>1. Authenticate (Roblox Login)</h2>
+        <p>Login with your Roblox credentials. If a captcha is required, you will be notified.</p>
+        <input type="text" id="username" placeholder="Roblox Username">
+        <input type="password" id="password" placeholder="Roblox Password">
+        <div id="captcha-container" style="display:none;">
+            <p>Captcha required. Solve it and paste the token below:</p>
+            <input type="text" id="captchaToken" placeholder="Captcha Token">
+            <input type="text" id="captchaId" placeholder="Captcha ID">
+        </div>
+        <button onclick="login()">Login</button>
+    </div>
+
+    <div class="section">
+        <h2>2. Link Discord</h2>
+        <input type="text" id="discordCode" placeholder="Enter code from Discord /link command">
+        <button onclick="linkDiscord()">Link Discord</button>
+    </div>
+
+    <div class="section" id="publish-section">
+        <h2>3. Create & Publish New Universe</h2>
+        <input type="file" id="newPlaceFile" accept=".rbxl,.rbxlx">
+        <input type="text" id="groupId" placeholder="Group ID (Optional)">
+        <button onclick="publishNew()">Create & Publish</button>
+    </div>
+
+    <div class="section">
+        <h2>4. Update Existing Place</h2>
+        <input type="text" id="uId" placeholder="Universe ID">
+        <input type="text" id="pId" placeholder="Place ID">
+        <input type="file" id="updatePlaceFile" accept=".rbxl,.rbxlx">
+        <button onclick="publishUpdate()">Update & Publish</button>
+    </div>
+
+    <div class="section">
+        <h2>Recent Logs</h2>
+        <button onclick="fetchLogs()">Refresh Logs</button>
+        <div id="log-container"></div>
+    </div>
+
+    <script>
+        let currentRobloxId = null;
+
+        function showStatus(msg, isError = false) {
+            const status = document.getElementById('status');
+            status.innerText = msg;
+            status.className = isError ? 'error' : 'success';
+        }
+
+        async function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const captchaToken = document.getElementById('captchaToken').value;
+            const captchaId = document.getElementById('captchaId').value;
+
+            showStatus('Logging in...');
+            const res = await fetch('/auth/login-programmatic', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password, captchaToken, captchaId })
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                currentRobloxId = data.user.id;
+                showStatus(`Logged in as ${data.user.name}!`);
+                document.getElementById('captcha-container').style.display = 'none';
+
+                // Get CLI Token
+                const tokenRes = await fetch('/api/auth/token', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ robloxId: currentRobloxId })
+                });
+                const tokenData = await tokenRes.json();
+                localStorage.setItem('cliToken', tokenData.token);
+                localStorage.setItem('robloxId', currentRobloxId);
+            } else if (data.captchaRequired) {
+                showStatus('Captcha required!', true);
+                document.getElementById('captcha-container').style.display = 'block';
+                document.getElementById('captchaId').value = data.captchaData.captchaId;
+            } else {
+                showStatus('Login failed: ' + data.error, true);
+            }
+        }
+
+        async function linkDiscord() {
+            const code = document.getElementById('discordCode').value;
+            const robloxId = localStorage.getItem('robloxId');
+            if (!robloxId) return showStatus('Please login to Roblox first', true);
+
+            const res = await fetch('/api/auth/discord-link', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ code, robloxId })
+            });
+            const data = await res.json();
+            showStatus(data.success ? 'Discord linked successfully!' : 'Error: ' + data.error, !data.success);
+        }
+
+        async function publishNew() {
+            const fileInput = document.getElementById('newPlaceFile');
+            const groupId = document.getElementById('groupId').value;
+            const token = localStorage.getItem('cliToken');
+            if (!fileInput.files[0]) return alert('Select a file');
+
+            const formData = new FormData();
+            formData.append('placeFile', fileInput.files[0]);
+            if (groupId) formData.append('groupId', groupId);
+
+            showStatus('Publishing...');
+            const res = await fetch('/api/publish/new', {
+                method: 'POST',
+                headers: { 'x-api-token': token },
+                body: formData
+            });
+            const data = await res.json();
+            showStatus(data.universeId ? `Published! Universe ID: ${data.universeId}` : 'Error: ' + data.error, !data.universeId);
+            fetchLogs();
+        }
+
+        async function publishUpdate() {
+            const universeId = document.getElementById('uId').value;
+            const placeId = document.getElementById('pId').value;
+            const fileInput = document.getElementById('updatePlaceFile');
+            const token = localStorage.getItem('cliToken');
+            if (!fileInput.files[0]) return alert('Select a file');
+
+            const formData = new FormData();
+            formData.append('placeFile', fileInput.files[0]);
+            formData.append('universeId', universeId);
+            formData.append('placeId', placeId);
+
+            showStatus('Updating...');
+            const res = await fetch('/api/publish/update', {
+                method: 'POST',
+                headers: { 'x-api-token': token },
+                body: formData
+            });
+            const data = await res.json();
+            showStatus(data.universeId ? `Updated!` : 'Error: ' + data.error, !data.universeId);
+            fetchLogs();
+        }
+
+        async function fetchLogs() {
+            const robloxId = localStorage.getItem('robloxId');
+            if (!robloxId) return;
+            const res = await fetch(`/api/logs?robloxId=${robloxId}`);
+            const logs = await res.json();
+            const container = document.getElementById('log-container');
+            container.innerHTML = logs.map(log => `
+                <div class="log-entry">
+                    [${log.timestamp}] <b>${log.action}</b>: ${log.status} - ${log.message}
+                </div>
+            `).join('');
+        }
+
+        // Auto-refresh logs
+        setInterval(fetchLogs, 10000);
+    </script>
+</body>
+</html>
