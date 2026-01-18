@@ -69,5 +69,4 @@ This project is designed to be deployed using the following free-tier services:
 - **Batching:** Default concurrency for uploads is set to 3 to prevent Roblox rate limits.
 - **MFA:** The WebView login supports 2FA challenges. The backend streams the browser frame, allowing you to enter codes manually.
 
-## 📄 License
-MIT
+
