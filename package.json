@@ -1,10 +1,23 @@
 {
-  "name": "Roblox Game Uploader",
+  "name": "roblox-publishing-platform",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev:backend": "npm run dev --workspace=@rgu/backend",
+    "dev:web": "npm run dev --workspace=@rgu/web",
+    "dev:discord": "npm run dev --workspace=@rgu/discord-bot",
+    "build": "npm run build --workspaces --if-present",
+    "db:generate": "npm run prisma generate --workspace=@rgu/backend",
+    "db:deploy": "npm run prisma migrate deploy --workspace=@rgu/backend",
+    "db:migrate": "npm run prisma migrate dev --workspace=@rgu/backend",
+    "install:cli": "npm install -g ./packages/cli"
   },
-  "private": true
+  "devDependencies": {
+    "eslint": "^8.56.0",
+    "prettier": "^3.1.1",
+    "prisma": "^5.7.1"
+  }
 }
