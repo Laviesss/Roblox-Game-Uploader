@@ -1,5 +1,18 @@
 export const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
+/**
+ * Serializes an object, converting BigInt values to strings to prevent JSON.stringify errors.
+ * @param {any} obj - The object to serialize.
+ * @returns {any} - The object with BigInts converted to strings.
+ */
+export function serializeBigInt(obj) {
+  return JSON.parse(
+    JSON.stringify(obj, (key, value) =>
+      typeof value === 'bigint' ? value.toString() : value
+    )
+  );
+}
+
 export async function withRetry(fn, maxRetries = 3, baseDelay = 1000) {
   let lastError;
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
